@@ -1,0 +1,416 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces WorkspaceMember[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members WorkspaceMember[]
+  topics  Topic[]
+  apiKeys ApiKey[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  partitions  Int      @default(1)
+  retentionMs BigInt   @default(604800000) // 7 days in milliseconds
+  schema      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  consumerGroups ConsumerGroup[]
+  schemaVersions SchemaVersion[]
+  acls           TopicAcl[]
+
+  @@unique([workspaceId, name])
+  @@map("topics")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  key         String    @unique
+  permissions Json      @default("{}")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+enum ConsumerStatus {
+  ACTIVE
+  INACTIVE
+  REBALANCING
+}
+
+model ConsumerGroup {
+  id          String   @id @default(cuid())
+  topicId     String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topic     Topic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  consumers Consumer[]
+  offsets   ConsumerOffset[]
+
+  @@unique([topicId, name])
+  @@map("consumer_groups")
+}
+
+model Consumer {
+  id              String         @id @default(cuid())
+  consumerGroupId String
+  consumerId      String // Unique identifier for this consumer instance
+  status          ConsumerStatus @default(ACTIVE)
+  assignedPartitions Json        @default("[]") // Array of partition numbers
+  lastHeartbeat   DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+
+  consumerGroup ConsumerGroup @relation(fields: [consumerGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([consumerGroupId, consumerId])
+  @@map("consumers")
+}
+
+model ConsumerOffset {
+  id              String   @id @default(cuid())
+  consumerGroupId String
+  partition       Int
+  offset          String // Redis Stream message ID
+  committedAt     DateTime @default(now())
+
+  consumerGroup ConsumerGroup @relation(fields: [consumerGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([consumerGroupId, partition])
+  @@map("consumer_offsets")
+}
+
+enum DlqStatus {
+  PENDING
+  RETRYING
+  FAILED
+  RESOLVED
+}
+
+enum FailureReason {
+  PROCESSING_ERROR
+  TIMEOUT
+  VALIDATION_ERROR
+  DESERIALIZATION_ERROR
+  UNKNOWN
+}
+
+model DeadLetterQueue {
+  id              String        @id @default(cuid())
+  topicId         String
+  consumerGroupId String?
+  partition       Int
+  originalOffset  String // Original message ID from stream
+  payload         Json
+  metadata        Json?
+  errorMessage    String
+  errorStack      String?
+  failureReason   FailureReason @default(UNKNOWN)
+  status          DlqStatus     @default(PENDING)
+  retryCount      Int           @default(0)
+  maxRetries      Int           @default(3)
+  nextRetryAt     DateTime?
+  resolvedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  retryHistory RetryHistory[]
+
+  @@index([topicId])
+  @@index([status])
+  @@index([consumerGroupId])
+  @@map("dead_letter_queue")
+}
+
+model RetryHistory {
+  id          String   @id @default(cuid())
+  dlqId       String
+  attemptNumber Int
+  errorMessage String?
+  retriedAt   DateTime @default(now())
+  success     Boolean
+
+  dlqMessage DeadLetterQueue @relation(fields: [dlqId], references: [id], onDelete: Cascade)
+
+  @@map("retry_history")
+}
+
+model MessageAcknowledgment {
+  id              String   @id @default(cuid())
+  consumerGroupId String
+  consumerId      String
+  partition       Int
+  offset          String
+  acknowledged    Boolean  @default(false)
+  ackAt           DateTime?
+  nackAt          DateTime?
+  nackReason      String?
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime // Visibility timeout
+
+  @@unique([consumerGroupId, consumerId, offset])
+  @@index([consumerGroupId, partition])
+  @@index([expiresAt])
+  @@map("message_acknowledgments")
+}
+
+// ========================================
+// Phase 60-80%: Enterprise Features
+// ========================================
+
+// Schema Registry
+enum SchemaFormat {
+  JSON_SCHEMA
+  AVRO
+  PROTOBUF
+}
+
+model SchemaVersion {
+  id          String       @id @default(cuid())
+  topicId     String
+  version     Int
+  format      SchemaFormat @default(JSON_SCHEMA)
+  schema      Json // JSON Schema definition
+  description String?
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  createdBy   String // User ID
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, version])
+  @@index([topicId, active])
+  @@map("schema_versions")
+}
+
+// Webhooks
+enum WebhookStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+model WebhookEndpoint {
+  id          String        @id @default(cuid())
+  topicId     String
+  name        String
+  url         String
+  secret      String? // For HMAC signature verification
+  headers     Json          @default("{}") // Custom headers
+  filters     Json? // Content-based filters
+  retryPolicy Json          @default("{\"maxRetries\": 3, \"backoffMs\": 1000}")
+  status      WebhookStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([topicId])
+  @@map("webhook_endpoints")
+}
+
+enum DeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+model WebhookDelivery {
+  id          String         @id @default(cuid())
+  webhookId   String
+  eventId     String // Redis Stream message ID
+  payload     Json
+  attempt     Int            @default(1)
+  status      DeliveryStatus @default(PENDING)
+  statusCode  Int?
+  response    String?
+  error       String?
+  deliveredAt DateTime?
+  createdAt   DateTime       @default(now())
+
+  webhook WebhookEndpoint @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("webhook_deliveries")
+}
+
+// Topic ACLs
+enum Permission {
+  READ
+  WRITE
+  ADMIN
+  DELETE
+}
+
+model TopicAcl {
+  id          String     @id @default(cuid())
+  topicId     String
+  userId      String? // If null, applies to API key
+  apiKeyId    String? // If null, applies to user
+  permission  Permission
+  createdAt   DateTime   @default(now())
+  createdBy   String // User ID who created the ACL
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([userId])
+  @@index([apiKeyId])
+  @@map("topic_acls")
+}
+
+// Audit Logs
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  WORKSPACE_CREATED
+  WORKSPACE_DELETED
+  TOPIC_CREATED
+  TOPIC_DELETED
+  TOPIC_UPDATED
+  EVENT_PUBLISHED
+  CONSUMER_GROUP_CREATED
+  CONSUMER_GROUP_DELETED
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  ACL_GRANTED
+  ACL_REVOKED
+  SCHEMA_CREATED
+  SCHEMA_UPDATED
+  WEBHOOK_CREATED
+  WEBHOOK_DELETED
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  workspaceId String?
+  userId      String?
+  action      AuditAction
+  resource    String // Resource type (e.g., "topic", "workspace")
+  resourceId  String? // ID of the resource
+  metadata    Json? // Additional context
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Usage Metrics
+enum MetricType {
+  EVENTS_PUBLISHED
+  EVENTS_CONSUMED
+  BANDWIDTH_IN
+  BANDWIDTH_OUT
+  API_REQUESTS
+  STORAGE_USED
+}
+
+model UsageMetric {
+  id          String     @id @default(cuid())
+  workspaceId String
+  topicId     String?
+  metricType  MetricType
+  value       BigInt // Numeric value (count, bytes, etc.)
+  timestamp   DateTime   @default(now())
+  metadata    Json? // Additional context
+
+  @@index([workspaceId])
+  @@index([topicId])
+  @@index([metricType])
+  @@index([timestamp])
+  @@map("usage_metrics")
+}
+
+// Message Filters
+enum FilterOperator {
+  EQUALS
+  NOT_EQUALS
+  CONTAINS
+  NOT_CONTAINS
+  GREATER_THAN
+  LESS_THAN
+  IN
+  NOT_IN
+  REGEX
+}
+
+model MessageFilter {
+  id              String         @id @default(cuid())
+  consumerGroupId String
+  name            String
+  field           String // JSON path (e.g., "payload.userId")
+  operator        FilterOperator
+  value           Json // Value to compare against
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([consumerGroupId])
+  @@map("message_filters")
+}

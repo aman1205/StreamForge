@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@streamforge/shared'],
-}
+  transpilePackages: ["@streamforge/shared"],
+  output: "standalone",
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

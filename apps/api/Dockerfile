@@ -1,15 +1,12 @@
-# Build stage (use newer Alpine for build tools)
+# Build stage (use Alpine for smaller image)
 FROM node:20-alpine AS builder
 
-# Install OpenSSL 3.x and other build dependencies for Prisma
-RUN apk add --no-cache openssl openssl-dev libc6-compat
-
-# Set environment variables for Prisma to detect OpenSSL properly
-ENV OPENSSL_LIB_DIR=/usr/lib
-ENV OPENSSL_INCLUDE_DIR=/usr/include
+# Install OpenSSL for Prisma (Alpine uses musl by default, Prisma detects this automatically)
+# DO NOT install libc6-compat as it prevents Prisma from running
+RUN apk add --no-cache openssl openssl-dev
 
 # Install pnpm
-RUN npm install -g pnpm@8.15.0
+RUN npm install -g pnpm@9.15.4
 
 # Set working directory
 WORKDIR /app
@@ -46,7 +43,7 @@ FROM node:20-slim
 RUN apt-get update -y && apt-get install -y openssl libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
-RUN npm install -g pnpm@8.15.0
+RUN npm install -g pnpm@9.15.4
 
 WORKDIR /app
 
@@ -65,8 +62,8 @@ RUN rm -rf apps/api/node_modules/@prisma apps/api/node_modules/.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy Prisma generated client from pnpm store (content-addressable storage)
+COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
 
 WORKDIR /app/apps/api
 

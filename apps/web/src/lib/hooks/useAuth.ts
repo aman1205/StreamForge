@@ -1,37 +1,14 @@
-import { Workspace } from './../../../../../packages/shared/src/types';
+import {
+  Workspace,
+  User,
+  AuthResponse,
+  RegisterDto,
+  LoginDto
+} from '@streamforge/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuthStore } from '../store';
 import { useRouter } from 'next/navigation';
-
-interface RegisterInput {
-  email: string;
-  password: string;
-  name: string;
-}
-
-interface LoginInput {
-  email: string;
-  password: string;
-}
-
-interface AuthResponse {
-  accessToken: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  };
-  workspace:Workspace
-}
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 // Register mutation
 export const useRegister = () => {
@@ -39,12 +16,12 @@ export const useRegister = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   return useMutation({
-    mutationFn: async (data: RegisterInput) => {
+    mutationFn: async (data: RegisterDto) => {
       const response = await api.post<AuthResponse>('/auth/register', data);
       return response.data;
     },
     onSuccess: (data) => {
-      setAuth(data.user, data.accessToken , data.workspace);
+      setAuth(data.user, data.accessToken, data.workspace);
       router.push('/');
     },
   });
@@ -56,7 +33,7 @@ export const useLogin = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   return useMutation({
-    mutationFn: async (data: LoginInput) => {
+    mutationFn: async (data: LoginDto) => {
       const response = await api.post<AuthResponse>('/auth/login', data);
       return response.data;
     },

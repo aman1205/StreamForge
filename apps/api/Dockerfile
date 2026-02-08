@@ -36,11 +36,11 @@ RUN cd apps/api && npx prisma generate --schema=./prisma/schema.prisma
 # Build the application from ROOT using filter
 RUN pnpm --filter @streamforge/api build
 
-# Production stage - Use Debian-based image for better compatibility
-FROM node:20-slim
+# Production stage - Use Alpine for compatibility with builder and smaller size
+FROM node:20-alpine
 
 # Install OpenSSL and other dependencies for Prisma
-RUN apt-get update -y && apt-get install -y openssl libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl ca-certificates
 
 # Install pnpm
 RUN npm install -g pnpm@9.15.4

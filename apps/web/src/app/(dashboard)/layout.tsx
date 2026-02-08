@@ -13,7 +13,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const { user, workspace } = useAuthStore()
-  const setCurrentWorkspace = useWorkspaceStore((state) => state.setCurrentWorkspace)
+  const setCurrentWorkspace = useWorkspaceStore((state) => state.setCurrentWorkspace);
+  console.log(workspace ,user ,"console")
 
   useEffect(() => {
     if (!user) {
@@ -28,11 +29,11 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header />
-        <main className="flex-1 overflow-auto bg-gray-50 p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-8 scrollbar-thin">{children}</main>
       </div>
     </div>
   )

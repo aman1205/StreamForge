@@ -10,6 +10,8 @@ import {
   Key,
   Settings,
   Activity,
+  Zap,
+  ChevronRight,
 } from 'lucide-react'
 import { useWorkspaceStore } from '@/lib/store'
 
@@ -27,15 +29,30 @@ export function Sidebar() {
   const workspace = useWorkspaceStore((state) => state.currentWorkspace)
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-white">
-      <div className="border-b p-6">
-        <h1 className="text-xl font-bold">StreamForge</h1>
+    <aside className="flex h-screen w-72 flex-col border-r border-border/50 bg-card/30 backdrop-blur-xl">
+      {/* Logo & Workspace */}
+      <div className="border-b border-border/50 p-6">
+        <Link href="/" className="flex items-center space-x-3 group mb-4">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center stream-glow group-hover:scale-110 transition-transform">
+            <Zap className="w-6 h-6 text-background" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">
+              Stream<span className="text-gradient">Forge</span>
+            </h1>
+          </div>
+        </Link>
+
         {workspace && (
-          <p className="text-sm text-gray-600 mt-1">{workspace.name}</p>
+          <div className="mt-4 p-3 rounded-lg bg-background/50 border border-border/50">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Workspace</p>
+            <p className="text-sm font-semibold text-foreground truncate">{workspace.name}</p>
+          </div>
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 p-4 overflow-y-auto scrollbar-thin">
         {navigation.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -46,23 +63,42 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'group flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-background shadow-lg stream-glow'
+                  : 'text-foreground hover:bg-background/50 hover:translate-x-1'
               )}
             >
-              <item.icon className="h-5 w-5" />
-              {item.name}
+              <div className="flex items-center gap-3">
+                <item.icon className={cn(
+                  "h-5 w-5 transition-transform group-hover:scale-110",
+                  isActive ? "text-background" : "text-muted-foreground group-hover:text-primary"
+                )} />
+                <span>{item.name}</span>
+              </div>
+
+              {isActive && (
+                <ChevronRight className="h-4 w-4 text-background" />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      <div className="border-t p-4">
-        <div className="text-xs text-gray-500">
-          <p>StreamForge v0.1.0</p>
-          <p className="mt-1">Distributed Event Streaming</p>
+      {/* Footer */}
+      <div className="border-t border-border/50 p-4">
+        <div className="rounded-lg bg-gradient-to-br from-primary/10 via-secondary/10 to-[hsl(var(--stream-pink))]/10 p-4 border border-primary/20">
+          <p className="text-xs font-medium text-foreground mb-1">StreamForge v0.1.0</p>
+          <p className="text-xs text-muted-foreground">Event Streaming Platform</p>
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Status</span>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-primary font-medium">Online</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </aside>

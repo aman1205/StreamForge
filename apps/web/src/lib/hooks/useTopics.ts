@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 
-interface Topic {
+export interface Topic {
   id: string;
   workspaceId: string;
   name: string;

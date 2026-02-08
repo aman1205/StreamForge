@@ -1,5 +1,4 @@
 import {
-  Workspace,
   User,
   AuthResponse,
   RegisterDto,
@@ -22,7 +21,8 @@ export const useRegister = () => {
     },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken, data.workspace);
-      router.push('/');
+      // Optional: Explicit redirect for faster feedback, though AuthGuard handles it too.
+      router.push('/dashboard');
     },
   });
 };
@@ -38,8 +38,8 @@ export const useLogin = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      setAuth(data.user, data.accessToken);
-      router.push('/');
+      setAuth(data.user, data.accessToken, data.workspace);
+      router.push('/dashboard');
     },
   });
 };
@@ -55,6 +55,7 @@ export const useCurrentUser = () => {
       return response.data;
     },
     enabled: !!token,
+    retry: false,
   });
 };
 
@@ -66,8 +67,11 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: async () => {
-      // In case you add logout endpoint later
-      // await api.post('/auth/logout');
+      try {
+        // await api.post('/auth/logout');
+      } catch (error) {
+        console.error('Logout failed', error);
+      }
     },
     onSuccess: () => {
       logout();

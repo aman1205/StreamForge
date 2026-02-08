@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useWorkspaceStore } from '@/lib/store'
 import { useTopics } from '@/lib/hooks'
-import { Users, Plus } from 'lucide-react'
+import { Users, Plus, Layers, ArrowRight } from 'lucide-react'
 
 export default function ConsumerGroupsPage() {
   const searchParams = useSearchParams()
@@ -15,67 +15,139 @@ export default function ConsumerGroupsPage() {
   const { data: topics } = useTopics(workspace?.id || '')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-slide-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Consumer Groups</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-4xl font-bold mb-2">Consumer Groups</h1>
+          <p className="text-lg text-muted-foreground">
             Manage event consumer groups for coordinated message processing
           </p>
         </div>
         {topicId && (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button
+            size="lg"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity stream-glow h-12 rounded-xl"
+          >
+            <Plus className="mr-2 h-5 w-5" />
             Create Consumer Group
           </Button>
         )}
       </div>
 
       {!topicId ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">Select a topic</h3>
-            <p className="text-muted-foreground mb-6">
-              Choose a topic to view and manage its consumer groups
-            </p>
-            <div className="max-w-md mx-auto space-y-2">
+        /* Topic Selection View */
+        <div className="space-y-6">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="py-20 text-center">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center mx-auto mb-6">
+                <Users className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3">Select a Topic</h3>
+              <p className="text-muted-foreground mb-8 text-lg max-w-md mx-auto">
+                Choose a topic to view and manage its consumer groups
+              </p>
+
               {topics && topics.length > 0 ? (
-                topics.map((topic) => (
-                  <Link key={topic.id} href={`/consumer-groups?topicId=${topic.id}`}>
-                    <Button variant="outline" className="w-full justify-start">
-                      {topic.name}
-                    </Button>
-                  </Link>
-                ))
+                <div className="max-w-2xl mx-auto space-y-3">
+                  {topics.map((topic, index) => (
+                    <Link
+                      key={topic.id}
+                      href={`/consumer-groups?topicId=${topic.id}`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <Card className="border-border/50 bg-background/50 hover:border-primary/50 transition-all group">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <Layers className="h-6 w-6 text-primary" />
+                              </div>
+                              <div className="text-left">
+                                <p className="font-semibold text-lg group-hover:text-primary transition-colors">
+                                  {topic.name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {topic.partitions} partition{topic.partitions !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
               ) : (
                 <div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    No topics available. Create a topic first.
+                  <p className="text-muted-foreground mb-6">
+                    No topics available. Create a topic first to set up consumer groups.
                   </p>
                   <Link href="/topics/new">
-                    <Button>Create Topic</Button>
+                    <Button
+                      size="lg"
+                      className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity stream-glow"
+                    >
+                      <Layers className="mr-2 h-5 w-5" />
+                      Create Topic
+                    </Button>
                   </Link>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">No consumer groups yet</h3>
-            <p className="text-muted-foreground mb-4">
+        /* Consumer Groups View (when topic selected) */
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="py-20 text-center">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center mx-auto mb-6">
+              <Users className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3">No consumer groups yet</h3>
+            <p className="text-muted-foreground mb-6 text-lg max-w-md mx-auto">
               Create a consumer group to start processing events from this topic
             </p>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Consumer Group
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity stream-glow"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Create Your First Consumer Group
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Info Card */}
+      <Card className="border-border/50 bg-gradient-to-br from-primary/10 to-secondary/10">
+        <CardHeader>
+          <CardTitle className="text-xl">What are Consumer Groups?</CardTitle>
+          <CardDescription className="text-base">
+            Learn about consumer groups and how they work
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <p className="text-foreground">
+            Consumer groups enable multiple consumers to work together to process events from a topic in a coordinated way.
+          </p>
+          <ul className="space-y-2 text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span>Each consumer in a group processes different partitions</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span>Automatic load balancing across consumers</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+              <span>Track consumer lag and offset management</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   )
 }
